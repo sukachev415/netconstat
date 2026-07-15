@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  netconstat-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.go
+    container_name: netconstat-api
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${NETFLOW_PORT:-2055}:2055/udp"
+      - "${API_PORT:-8080}:8080/tcp"
+    volumes:
+      - ./data:/data
+    environment:
+      - DUCKDB_PATH=/data/netconstat.duckdb
+      - ASN_DB_PATH=/data/asn/GeoLite2-ASN.mmdb
+      - RETENTION_DAYS=${RETENTION_DAYS:-30}
+      - API_ADDR=0.0.0.0:8080
+      - NETFLOW_ADDR=0.0.0.0:2055
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+
+  netconstat-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: netconstat-ui
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-3000}:80"
+    depends_on:
+      - netconstat-api
