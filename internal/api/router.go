@@ -56,8 +56,8 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
-	from := q.Get("from")
-	to := q.Get("to")
+	from := parseTime(q.Get("from"))
+	to := parseTime(q.Get("to"))
 	sourceIP := q.Get("source_ip")
 	destIP := q.Get("dest_ip")
 	service := q.Get("service")
@@ -71,12 +71,12 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 		FROM flows WHERE 1=1`
 	args := []any{}
 
-	if from != "" {
-		query += " AND timestamp >= $1"
+	if from != nil {
+		query += " AND timestamp >= $" + itoa(len(args)+1)
 		args = append(args, from)
 	}
-	if to != "" {
-		query += " AND timestamp <= $2"
+	if to != nil {
+		query += " AND timestamp <= $" + itoa(len(args)+1)
 		args = append(args, to)
 	}
 	if sourceIP != "" {
@@ -147,8 +147,8 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleStatsTraffic(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	from := q.Get("from")
-	to := q.Get("to")
+	from := parseTime(q.Get("from"))
+	to := parseTime(q.Get("to"))
 	interval := q.Get("interval")
 	groupBy := q.Get("group_by")
 
@@ -180,11 +180,11 @@ func (s *Server) handleStatsTraffic(w http.ResponseWriter, r *http.Request) {
 		FROM flows WHERE 1=1`
 	args := []any{}
 
-	if from != "" {
+	if from != nil {
 		query += " AND timestamp >= $" + itoa(len(args)+1)
 		args = append(args, from)
 	}
-	if to != "" {
+	if to != nil {
 		query += " AND timestamp <= $" + itoa(len(args)+1)
 		args = append(args, to)
 	}
@@ -356,6 +356,21 @@ func queryInt(q map[string][]string, key string, def int) int {
 
 func itoa(n int) string {
 	return fmt.Sprintf("%d", n)
+}
+
+func parseTime(s string) *time.Time {
+	if s == "" {
+		return nil
+	}
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		// Try without timezone
+		t, err = time.Parse("2006-01-02T15:04:05", s)
+		if err != nil {
+			return nil
+		}
+	}
+	return &t
 }
 
 func protocolName(proto int) string {
