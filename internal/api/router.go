@@ -160,28 +160,28 @@ func (s *Server) handleStatsTraffic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	timeBucket := map[string]string{
-		"1m":  "1 minute",
-		"5m":  "5 minutes",
-		"15m": "15 minutes",
-		"1h":  "1 hour",
-		"1d":  "1 day",
+		"1m":  "minute",
+		"5m":  "minute",
+		"15m": "minute",
+		"1h":  "hour",
+		"1d":  "day",
 	}[interval]
 	if timeBucket == "" {
-		timeBucket = "1 hour"
+		timeBucket = "hour"
 	}
 
-	groupCol := "dst_asn_org"
+	groupCol := "COALESCE(dst_asn_org, 'Unknown')"
 	if groupBy == "protocol" {
 		groupCol = "protocol::VARCHAR"
 	}
 
-	query := `SELECT date_trunc($1, timestamp) as bucket, ` + groupCol + ` as label, 
+	query := `SELECT date_trunc('` + timeBucket + `', timestamp) as bucket, ` + groupCol + ` as label, 
 		SUM(bytes) as total_bytes, SUM(packets) as total_packets, COUNT(*) as flow_count
 		FROM flows WHERE 1=1`
-	args := []any{timeBucket}
+	args := []any{}
 
 	if from != "" {
-		query += " AND timestamp >= $2"
+		query += " AND timestamp >= $" + itoa(len(args)+1)
 		args = append(args, from)
 	}
 	if to != "" {
@@ -293,7 +293,9 @@ func (s *Server) handleProtocols(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleServices(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.db.Query(`SELECT DISTINCT COALESCE(dst_asn_org, 'Unknown') FROM flows ORDER BY 1 LIMIT 500`)
+	rows, err := s.db.Query(`SELECT DISTINCT dst_asn_org FROM flows 
+		WHERE dst_asn_org IS NOT NULL AND dst_asn_org != '' AND dst_asn_org != 'Unknown'
+		ORDER BY 1 LIMIT 500`)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
@@ -314,7 +316,9 @@ func (s *Server) handleServices(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDevices(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.db.Query(`SELECT DISTINCT source_ip FROM flows ORDER BY 1 LIMIT 500`)
+	rows, err := s.db.Query(`SELECT DISTINCT source_ip FROM flows 
+		WHERE source_ip LIKE '192.168.%' OR source_ip LIKE '10.%' OR source_ip LIKE '172.1%.%' OR source_ip LIKE '172.2%.%' OR source_ip LIKE '172.3%.%'
+		ORDER BY 1 LIMIT 500`)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
