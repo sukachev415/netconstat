@@ -3,6 +3,7 @@ package parser
 import (
 	"encoding/binary"
 	"fmt"
+	"log"
 	"net"
 	"sync"
 	"time"
@@ -123,6 +124,7 @@ func (p *Parser) Parse(payload []byte) ([]FlowRecord, error) {
 		switch {
 		case flowSetID == FlowSetTemplate:
 			p.parseTemplates(fsData, hdr.SourceID)
+			log.Printf("[parser] received template flowset (id=%d, %d bytes, sourceID=%d)", flowSetID, len(fsData), hdr.SourceID)
 		case flowSetID == FlowSetOptionsTmpl:
 			// skip options templates
 		case flowSetID >= FlowSetMinData:
@@ -132,6 +134,8 @@ func (p *Parser) Parse(payload []byte) ([]FlowRecord, error) {
 			} else {
 				records = append(records, recs...)
 			}
+		default:
+			log.Printf("[parser] unknown flowset type %d (len=%d)", flowSetID, flowSetLen)
 		}
 
 		offset += flowSetLen
@@ -151,12 +155,13 @@ func (p *Parser) parseHeader(data []byte) NF9Header {
 		UnixSecs:  binary.BigEndian.Uint32(data[8:12]),
 		UnixNSecs: binary.BigEndian.Uint32(data[12:16]),
 		FlowSeq:   binary.BigEndian.Uint32(data[16:20]),
-		SourceID:  uint32(binary.BigEndian.Uint16(data[20:22])),
+		SourceID:  uint32(binary.BigEndian.Uint16(data[20:22])), // 2 bytes for SourceID per RFC 3954
 	}
 }
 
 func (p *Parser) templateKey(sourceID uint32, templateID uint16) string {
-	return fmt.Sprintf("%d:%d", sourceID, templateID)
+	// Use only templateID — MikroTik may send template and data with different sourceIDs
+	return fmt.Sprintf("%d", templateID)
 }
 
 func (p *Parser) parseTemplates(data []byte, sourceID uint32) {

@@ -78,11 +78,14 @@ func (c *Collector) readLoop(conn *net.UDPConn, ch chan<- FlowBatch) {
 			c.mu.Lock()
 			c.PacketsErr++
 			c.mu.Unlock()
-			// still send records if any were decoded
+			log.Printf("[collector] parse error (pkt %d bytes): %v", n, parseErr)
 			if len(records) == 0 {
-				log.Printf("[collector] parse error: %v", parseErr)
 				continue
 			}
+		}
+
+		if len(records) > 0 {
+			log.Printf("[collector] parsed %d flows from %d byte packet", len(records), n)
 		}
 
 		c.mu.Lock()
