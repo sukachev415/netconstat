@@ -15,9 +15,7 @@ export function ServiceFilter() {
       >
         <option value="">All Services</option>
         {services?.map((svc) => (
-          <option key={svc.name} value={svc.name}>
-            {svc.name}
-          </option>
+          <option key={svc} value={svc}>{svc}</option>
         ))}
       </select>
     </div>

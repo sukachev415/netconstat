@@ -2,6 +2,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import { useProtocols } from '../../hooks/useStats';
 import { useDashboard } from '../../contexts/DashboardContext';
 import type { DataUnit } from '../../contexts/DashboardContext';
+import type { ProtocolStat } from '../../api/client';
 
 const COLORS = [
   '#0ea5e9', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444',
@@ -18,20 +19,16 @@ function formatBytes(bytes: number, unit: DataUnit): string {
   return `${value.toFixed(2)} ${unit}`;
 }
 
-interface ProtocolData {
-  name: string;
-  value: number;
-  percentage: number;
-}
-
 export function ProtocolBreakdown() {
   const { unit } = useDashboard();
   const { data: protocols, isLoading } = useProtocols();
 
-  const chartData: ProtocolData[] = protocols?.map((p) => ({
-    name: p.protocol,
+  const totalBytes = protocols?.reduce((sum: number, p: ProtocolStat) => sum + p.total_bytes, 0) || 1;
+
+  const chartData = protocols?.map((p: ProtocolStat) => ({
+    name: p.name,
     value: p.total_bytes,
-    percentage: p.percentage,
+    percentage: (p.total_bytes / totalBytes * 100),
   })) || [];
 
   if (isLoading) {
@@ -40,6 +37,17 @@ export function ProtocolBreakdown() {
         <h3 className="text-lg font-semibold text-[var(--color-text)] mb-4">Protocol Distribution</h3>
         <div className="h-60 flex items-center justify-center text-[var(--color-text-secondary)]">
           Loading...
+        </div>
+      </div>
+    );
+  }
+
+  if (!chartData.length) {
+    return (
+      <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-6">
+        <h3 className="text-lg font-semibold text-[var(--color-text)] mb-4">Protocol Distribution</h3>
+        <div className="h-60 flex items-center justify-center text-[var(--color-text-secondary)]">
+          No data yet...
         </div>
       </div>
     );
@@ -60,7 +68,7 @@ export function ProtocolBreakdown() {
               paddingAngle={2}
               dataKey="value"
             >
-              {chartData.map((_, index) => (
+              {chartData.map((_: unknown, index: number) => (
                 <Cell key={index} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
@@ -81,7 +89,7 @@ export function ProtocolBreakdown() {
         </ResponsiveContainer>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-2">
-        {chartData.slice(0, 4).map((item, index) => (
+        {chartData.slice(0, 4).map((item: { name: string; percentage: number }, index: number) => (
           <div key={item.name} className="flex items-center gap-2">
             <span
               className="w-2 h-2 rounded-full"

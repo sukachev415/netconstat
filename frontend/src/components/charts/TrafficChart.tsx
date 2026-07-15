@@ -38,24 +38,33 @@ export function TrafficChart() {
   const { data: trafficStats, isLoading } = useTrafficStats();
 
   const { chartData, services } = useMemo(() => {
-    if (!trafficStats) return { chartData: [], services: [] };
+    if (!trafficStats || trafficStats.length === 0) return { chartData: [], services: [] };
 
     const timeMap = new Map<string, Record<string, number | string>>();
     const serviceSet = new Set<string>();
 
     trafficStats.forEach((stat: TrafficStat) => {
-      const time = formatTimestamp(stat.timestamp);
-      serviceSet.add(stat.service);
+      const time = formatTimestamp(stat.bucket);
+      const serviceName = stat.label || 'Unknown';
+      serviceSet.add(serviceName);
       
       if (!timeMap.has(time)) {
-        timeMap.set(time, { timestamp: stat.timestamp });
+        timeMap.set(time, { timestamp: stat.bucket });
       }
       
       const entry = timeMap.get(time)!;
-      entry[stat.service] = (Number(entry[stat.service]) || 0) + convertBytes(stat.bytes, unit);
+      entry[serviceName] = (Number(entry[serviceName]) || 0) + convertBytes(stat.total_bytes, unit);
     });
 
-    const sortedServices = Array.from(serviceSet).slice(0, 8);
+    const sortedServices = Array.from(serviceSet)
+      .filter(s => s !== 'Unknown')
+      .slice(0, 8);
+    
+    // Add Unknown last if present
+    if (serviceSet.has('Unknown') && sortedServices.length < 9) {
+      sortedServices.push('Unknown');
+    }
+
     const data = Array.from(timeMap.values()).sort(
       (a, b) => new Date(String(a.timestamp)).getTime() - new Date(String(b.timestamp)).getTime()
     );
@@ -72,6 +81,20 @@ export function TrafficChart() {
         </div>
         <div className="h-80 flex items-center justify-center text-[var(--color-text-secondary)]">
           Loading...
+        </div>
+      </div>
+    );
+  }
+
+  if (!chartData.length) {
+    return (
+      <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-[var(--color-text)]">Traffic Over Time</h3>
+          <UnitToggle />
+        </div>
+        <div className="h-80 flex items-center justify-center text-[var(--color-text-secondary)]">
+          Waiting for NetFlow data...
         </div>
       </div>
     );

@@ -28,57 +28,40 @@ export async function fetchApi<T>(
   return response.json();
 }
 
-// Types
+// Types matching actual API responses
 export interface Flow {
-  id: number;
   timestamp: string;
   source_ip: string;
   dest_ip: string;
   source_port: number;
   dest_port: number;
-  protocol: string;
+  protocol: number;
+  traffic_mark: number;
+  bytes: number;
+  packets: number;
   service: string;
-  bytes_sent: number;
-  bytes_received: number;
-  packets_sent: number;
-  packets_received: number;
-  duration: number;
 }
 
 export interface TrafficStat {
-  timestamp: string;
-  service: string;
-  bytes: number;
-  packets: number;
-  flows: number;
+  bucket: string;
+  label: string;
+  total_bytes: number;
+  total_packets: number;
+  flow_count: number;
 }
 
 export interface TopService {
   service: string;
   total_bytes: number;
   total_packets: number;
-  total_flows: number;
-  percentage: number;
+  flow_count: number;
 }
 
 export interface ProtocolStat {
-  protocol: string;
-  total_bytes: number;
-  total_packets: number;
-  total_flows: number;
-  percentage: number;
-}
-
-export interface Service {
+  protocol: number;
   name: string;
-  port: number;
-  protocol: string;
-}
-
-export interface Device {
-  ip: string;
-  hostname?: string;
-  last_seen: string;
+  total_bytes: number;
+  flow_count: number;
 }
 
 // API functions
@@ -112,7 +95,7 @@ export const api = {
     to?: string;
   }) => fetchApi<ProtocolStat[]>('/stats/protocols', params as Record<string, string | number | undefined>),
 
-  getServices: () => fetchApi<Service[]>('/services'),
+  getServices: () => fetchApi<string[]>('/services'),
   
-  getDevices: () => fetchApi<Device[]>('/devices'),
+  getDevices: () => fetchApi<string[]>('/devices'),
 };
